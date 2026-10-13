@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Cymbal A/B</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: sticky filter bar, compare dock (A–D players + transport) above a scannable cymbal list */
+:root{
+  --bg:#f6f3ee; --surface:#fffdf9; --line:#e2dbcf; --fg:#211d17; --muted:#6f665a;
+  --bronze:#a8691f; --bronze-ink:#fff8ee; --bronze-soft:#f1e3cd; --danger:#b3261e;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#15130f; --surface:#1e1b16; --line:#353027; --fg:#efe8dc; --muted:#a59a89;
+  --bronze:#d39a4a; --bronze-ink:#1a1408; --bronze-soft:#3a2d1b; --danger:#f2867d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#15130f; --surface:#1e1b16; --line:#353027; --fg:#efe8dc; --muted:#a59a89;
+  --bronze:#d39a4a; --bronze-ink:#1a1408; --bronze-soft:#3a2d1b; --danger:#f2867d; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 var(--body);padding-inline:16px;padding-block:0 48px;
+  padding-top:env(safe-area-inset-top,0px)}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:18px}
+h1{font:700 2.1rem/1 var(--display);letter-spacing:.01em;margin:18px 0 2px;text-wrap:balance}
+h1 span{color:var(--bronze)}
+.sub{color:var(--muted);margin:0}
+h2{font:600 1.15rem/1.1 var(--display);text-transform:uppercase;letter-spacing:.08em;margin:0;color:var(--muted)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:7px 12px}
+button:hover{border-color:var(--bronze)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--bronze);outline-offset:2px}
+button.primary{background:var(--bronze);color:var(--bronze-ink);border-color:var(--bronze);font-weight:600}
+button:disabled{opacity:.45;cursor:not-allowed}
+input,select{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 10px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grow{flex:1 1 220px}
+.status{font:400 .85rem var(--mono);color:var(--muted)}
+.err{color:var(--danger)}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:10px;border-bottom:1px solid var(--line);display:grid;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border-radius:999px;padding:4px 12px;font-size:.88rem}
+.chip[aria-pressed="true"]{background:var(--bronze-soft);border-color:var(--bronze);color:var(--fg);font-weight:600}
+/* compare dock */
+.slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.slot{border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:8px;background:var(--bg);min-width:0}
+.slot.active{border-color:var(--bronze);box-shadow:0 0 0 2px var(--bronze-soft)}
+.slot-head{display:flex;gap:8px;align-items:flex-start}
+.letter{font:700 1.5rem/1 var(--display);width:30px;height:30px;display:grid;place-items:center;border-radius:6px;background:var(--bronze-soft);flex:none}
+.slot.active .letter{background:var(--bronze);color:var(--bronze-ink)}
+.slot-name{font-weight:600;line-height:1.25;min-width:0;overflow-wrap:anywhere}
+.slot-meta{font:400 .8rem var(--mono);color:var(--muted)}
+.player{aspect-ratio:16/9;width:100%;max-width:100%;background:#000;border-radius:6px;overflow:hidden}
+.player iframe{width:100%;height:100%;border:0;display:block}
+.slot .row{gap:6px}
+.slot input[type=text]{width:78px;font-family:var(--mono)}
+.slot input[type=range]{flex:1 1 90px;accent-color:var(--bronze)}
+.empty{color:var(--muted);font-size:.9rem;border:1px dashed var(--line);border-radius:10px;padding:14px;text-align:center}
+.transport{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ab{font:700 1.35rem/1 var(--display);min-width:54px;padding:10px 0}
+.ab.on{background:var(--bronze);color:var(--bronze-ink);border-color:var(--bronze)}
+label.tog{display:flex;gap:6px;align-items:center;font-size:.9rem;color:var(--muted)}
+/* list */
+.list{display:grid;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.item{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;padding:9px 12px;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.size{font:700 1.45rem/1 var(--display);color:var(--bronze);font-variant-numeric:tabular-nums}
+.size small{font-size:.7em}
+.name{min-width:0}
+.name b{font-weight:600}
+.name .meta{font:400 .78rem var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.adds{display:flex;gap:4px}
+.adds button{padding:5px 9px;font:600 .95rem var(--display)}
+.adds button.in{background:var(--bronze-soft);border-color:var(--bronze)}
+a{color:var(--bronze)}
+.kbd{font:400 .78rem var(--mono);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+@media (max-width:560px){.item{grid-template-columns:44px 1fr}.adds{grid-column:1/-1;justify-content:flex-end}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Cymbal <span>A/B</span></h1>
+    <p class="sub">Side-by-side demos from a YouTube channel. Pick up to four, set a mark on each, switch with A–D or keys 1–4.</p>
+  </header>
+
+  <section class="panel" id="setup">
+    <h2>Source</h2>
+    <div class="row">
+      <input class="grow" id="key" type="password" placeholder="YouTube Data API key" autocomplete="off">
+      <input id="handle" type="text" value="@memphisdrumshop" style="width:190px" aria-label="Channel handle">
+      <button class="primary" id="load">Load channel</button>
+      <button id="refresh" title="Fetch only new uploads">Check for new</button>
+    </div>
+    <div class="status" id="status">Paste your key and press Load. The list is cached in this browser, so you only do the full fetch once.</div>
+  </section>
+
+  <section class="panel">
+    <div class="row" style="justify-content:space-between">
+      <h2>Compare</h2>
+      <div class="transport">
+        <div class="row" id="abBtns"></div>
+        <button id="play">Play / Pause</button>
+        <button id="toMark">Back to mark</button>
+        <label class="tog"><input type="checkbox" id="keepOffset" checked> Keep position when switching</label>
+      </div>
+    </div>
+    <div class="slots" id="slots"></div>
+  </section>
+
+  <section>
+    <div class="bar">
+      <div class="row">
+        <input class="grow" id="q" type="search" placeholder="Search, e.g. byzance traditional, k sweet, 19">
+        <select id="brand" aria-label="Brand"><option value="">All brands</option></select>
+        <select id="size" aria-label="Size"><option value="">All sizes</option></select>
+        <select id="sort" aria-label="Sort">
+          <option value="new">Newest</option><option value="size">Size</option><option value="weight">Weight</option><option value="name">Name</option>
+        </select>
+      </div>
+      <div class="chips" id="types"></div>
+      <div class="status" id="count"></div>
+    </div>
+    <div class="list" id="list"></div>
+    <div class="row" style="justify-content:center;margin-top:12px"><button id="more" hidden>Show more</button></div>
+  </section>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+          set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
+
+/* ---------- title parsing ---------- */
+const BRANDS=["Istanbul Agop","Istanbul Mehmet","Murat Diril","Roberto Spizzichino","Holy China","Zildjian","Sabian","Meinl","Paiste","Dream","Bosphorus","Turkish","UFIP","Agean","Anatolian","Soultone","Spizzichino","Kerope","Diril","Masterwork","Wuhan","Stagg","Zultan","Saluda","Funch","Crescent","Hammerax","Supernatural","Silverfox","Gen16","Agop","Istanbul","Tosco","Unix","Bespoke"];
+const TYPES=[["Hi-Hats",/\bhi-?\s?hats?\b|\bhats\b/i],["Crash Ride",/crash[\s-]*ride|ride[\s-]*crash/i],["China",/china/i],["Splash",/splash/i],["Stack",/stack/i],["Ride",/\bride\b/i],["Crash",/crash/i],["Bell",/\bbell\b/i],["Effects",/trash|\bfx\b|effect|o-?zone|\bsizzle|bell/i]];
+function parse(v){
+  let t=v.t.replace(/\s+/g," ").trim();
+  let used=/^(used|pre-?owned)\b/i.test(t);
+  let clean=t.replace(/^(used|pre-?owned)\s+/i,"").replace(/\((video demo|demo|video)\)/ig,"").replace(/\s*-\s*$/,"").trim();
+  const lower=clean.toLowerCase();
+  let brand=BRANDS.find(b=>lower.startsWith(b.toLowerCase()));
+  if(!brand){const m=clean.match(/^[A-Za-z][\w'-]*/);brand=m?m[0]:"Other"}
+  if(brand.toUpperCase()==="UFIP")brand="UFIP";
+  let size="",sizeNum=0;
+  let m=clean.match(/(\d{1,2}(?:\.\d)?)\s*\/\s*(\d{1,2}(?:\.\d)?)\s*(?:"|”|″|''|-?inch\b)/i);
+  if(m){size=m[1]+"/"+m[2];sizeNum=+m[2]}
+  else{m=clean.match(/(\d{1,2}(?:\.\d)?)\s*(?:"|”|″|''|-?\s?inch(?:es)?\b|in\b)/i);if(m){size=m[1];sizeNum=+m[1]}}
+  const weights=[...clean.matchAll(/(\d{3,4})\s*(?:g|grams?)\b/gi)].map(x=>+x[1]);
+  let type="Other";for(const [n,re] of TYPES){if(re.test(clean)){type=n;break}}
+  let name=clean.replace(/\s*[-–|,]?\s*\d{3,4}\s*(?:g|grams?)\b(\s*\/\s*\d{3,4}\s*(?:g|grams?)\b)*/gi,"").replace(/\s+cymbals?\b/ig,"").replace(/\s*[-–|]\s*$/,"").trim();
+  let model=name;
+  if(model.toLowerCase().startsWith(brand.toLowerCase()))model=model.slice(brand.length).trim();
+  model=model.replace(/^\d{1,2}(?:\.\d)?(?:\s*\/\s*\d{1,2}(?:\.\d)?)?\s*(?:"|”|″|''|-?\s?inch(?:es)?\b|in\b)\s*/i,"").trim();
+  return {id:v.i,date:v.d,title:t,brand,size,sizeNum,weights,weight:weights[0]||0,type,model:model||name,used,isCymbal:type!=="Other"||!!size};
+}
+
+/* ---------- data ---------- */
+let videos=LS.get("cab.videos",[]); // [{i,t,d}]
+let items=[];
+function rebuild(){
+  items=videos.filter(v=>v.t&&!/^(private|deleted) video$/i.test(v.t)).map(parse);
+  const brands=[...new Set(items.filter(x=>x.isCymbal).map(x=>x.brand))].sort();
+  const sizes=[...new Set(items.filter(x=>x.size&&!x.size.includes("/")).map(x=>x.sizeNum))].sort((a,b)=>a-b);
+  fillSel($("#brand"),"All brands",brands.map(b=>[b,b]));
+  fillSel($("#size"),"All sizes",sizes.map(s=>[String(s),s+'"']));
+  render();
+}
+function fillSel(sel,all,opts){const cur=sel.value;sel.innerHTML="";sel.append(new Option(all,""));for(const [v,l] of opts)sel.append(new Option(l,v));sel.value=opts.some(o=>o[0]===cur)?cur:""}
+
+/* ---------- YouTube Data API ---------- */
+const status=(msg,err)=>{const s=$("#status");s.textContent=msg;s.classList.toggle("err",!!err)};
+async function api(path,params){
+  const key=$("#key").value.trim();
+  if(!key)throw new Error("Add your API key first.");
+  const u="https://www.googleapis.com/youtube/v3/"+path+"?"+new URLSearchParams({...params,key});
+  const r=await fetch(u);const j=await r.json().catch(()=>({}));
+  if(!r.ok||j.error)throw new Error((j.error&&j.error.message)||("Request failed ("+r.status+")"));
+  return j;
+}
+async function uploadsId(){
+  const h=$("#handle").value.trim().replace(/^@/,"");
+  const cached=LS.get("cab.uploads",null);
+  if(cached&&cached.h===h)return cached.id;
+  const j=await api("channels",{part:"contentDetails",forHandle:"@"+h});
+  if(!j.items||!j.items.length)throw new Error("Channel @"+h+" not found. Check the handle.");
+  const id=j.items[0].contentDetails.relatedPlaylists.uploads;
+  LS.set("cab.uploads",{h,id});return id;
+}
+let busy=false;
+async function fetchAll(incremental){
+  if(busy)return;busy=true;$("#load").disabled=$("#refresh").disabled=true;
+  try{
+    LS.set("cab.key",$("#key").value.trim());
+    const pid=await uploadsId();
+    const known=new Set(incremental?videos.map(v=>v.i):[]);
+    const got=[];let token="",pages=0,stop=false;
+    do{
+      const j=await api("playlistItems",{part:"snippet",playlistId:pid,maxResults:"50",...(token?{pageToken:token}:{})});
+      for(const it of j.items||[]){
+        const id=it.snippet.resourceId&&it.snippet.resourceId.videoId;if(!id)continue;
+        if(known.has(id)){stop=true;break}
+        got.push({i:id,t:it.snippet.title,d:(it.snippet.publishedAt||"").slice(0,10)});
+      }
+      token=j.nextPageToken||"";pages++;
+      status((incremental?"Checking for new uploads… ":"Fetching… ")+got.length+" videos ("+pages+" pages)");
+    }while(token&&!stop);
+    videos=incremental?got.concat(videos):got;
+    const saved=LS.set("cab.videos",videos);
+    status((incremental?got.length+" new. ":"")+videos.length+" videos loaded."+(saved?" Cached in this browser.":" Could not cache, so this will refetch next time."));
+    rebuild();
+  }catch(e){status(e.message,true)}
+  finally{busy=false;$("#load").disabled=$("#refresh").disabled=false}
+}
+
+/* ---------- filters & list ---------- */
+const TYPE_NAMES=["Crash","Ride","Crash Ride","Hi-Hats","China","Splash","Stack","Effects","Bell"];
+let typeSel=new Set(LS.get("cab.types",[]));
+function drawTypes(){
+  const box=$("#types");box.innerHTML="";
+  for(const n of TYPE_NAMES){const b=document.createElement("button");b.className="chip";b.textContent=n;b.setAttribute("aria-pressed",typeSel.has(n));
+    b.onclick=()=>{typeSel.has(n)?typeSel.delete(n):typeSel.add(n);LS.set("cab.types",[...typeSel]);drawTypes();render()};box.append(b)}
+}
+let shown=150;
+function filtered(){
+  const q=$("#q").value.toLowerCase().split(/\s+/).filter(Boolean);
+  const br=$("#brand").value,sz=$("#size").value,so=$("#sort").value;
+  let r=items.filter(x=>x.isCymbal&&(!br||x.brand===br)&&(!sz||String(x.sizeNum)===sz)&&(!typeSel.size||typeSel.has(x.type))&&q.every(w=>x.title.toLowerCase().includes(w)));
+  if(so==="size")r.sort((a,b)=>a.sizeNum-b.sizeNum||a.weight-b.weight);
+  else if(so==="weight")r.sort((a,b)=>(a.weight||9e9)-(b.weight||9e9));
+  else if(so==="name")r.sort((a,b)=>(a.brand+a.model).localeCompare(b.brand+b.model)||a.sizeNum-b.sizeNum);
+  else r.sort((a,b)=>b.date.localeCompare(a.date));
+  return r;
+}
+function render(){
+  const r=filtered();const list=$("#list");list.innerHTML="";
+  $("#count").textContent=items.length?r.length+" cymbals match":"";
+  if(!items.length){list.innerHTML='<div class="item"><div></div><div class="name">No videos loaded yet. Add your key above and press <b>Load channel</b>.</div></div>';$("#more").hidden=true;return}
+  if(!r.length){list.innerHTML='<div class="item"><div></div><div class="name">Nothing matches. Loosen the filters or search.</div></div>'}
+  const frag=document.createDocumentFragment();
+  for(const x of r.slice(0,shown)){
+    const el=document.createElement("div");el.className="item";
+    const sz=x.size?(x.size.includes("/")?x.size:x.size+'<small>"</small>'):"–";
+    el.innerHTML='<div class="size">'+sz+'</div><div class="name"><b></b><div class="meta"></div></div><div class="adds"></div>';
+    el.querySelector("b").textContent=x.brand+" "+x.model;
+    el.querySelector(".meta").textContent=[x.type,x.weights.length?x.weights.map(w=>w+"g").join(" / "):"",x.used?"used":"",x.date].filter(Boolean).join(" · ");
+    const adds=el.querySelector(".adds");
+    "ABCD".split("").forEach((L,i)=>{const b=document.createElement("button");b.textContent=L;b.title="Put in slot "+L;
+      if(slots[i]&&slots[i].item.id===x.id)b.classList.add("in");
+      b.onclick=()=>{setSlot(i,x);render()};adds.append(b)});
+    const yt=document.createElement("a");yt.href="https://www.youtube.com/watch?v="+x.id;yt.target="_blank";yt.rel="noopener";yt.textContent="↗";yt.title="Open on YouTube";yt.style.cssText="align-self:center;padding:0 4px;text-decoration:none";
+    adds.append(yt);frag.append(el);
+  }
+  list.append(frag);
+  $("#more").hidden=r.length<=shown;
+}
+
+/* ---------- compare slots ---------- */
+let slots=[null,null,null,null];let active=-1;let ytReady=false;const pending=[];
+window.onYouTubeIframeAPIReady=()=>{ytReady=true;pending.splice(0).forEach(f=>f())};
+function fmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
+function unfmt(v){const p=String(v).trim().split(":").map(Number);if(p.some(isNaN))return 0;return p.length===2?p[0]*60+p[1]:p[0]}
+function setSlot(i,item){
+  if(slots[i]&&slots[i].player)try{slots[i].player.destroy()}catch(e){}
+  slots[i]={item,mark:0,vol:100,player:null};
+  if(active<0)active=i;
+  drawSlots();saveSlots();
+}
+function clearSlot(i){if(slots[i]&&slots[i].player)try{slots[i].player.destroy()}catch(e){}
+  slots[i]=null;if(active===i)active=slots.findIndex(Boolean);drawSlots();saveSlots();render()}
+function saveSlots(){LS.set("cab.slots",slots.map(s=>s&&{item:s.item,mark:s.mark,vol:s.vol}))}
+function drawSlots(){
+  const box=$("#slots");box.innerHTML="";
+  slots.forEach((s,i)=>{
+    const L="ABCD"[i];
+    if(!s){const e=document.createElement("div");e.className="empty";e.innerHTML="<b>"+L+"</b> empty. Tap "+L+" on a cymbal below.";box.append(e);return}
+    const el=document.createElement("div");el.className="slot"+(i===active?" active":"");
+    el.innerHTML='<div class="slot-head"><div class="letter">'+L+'</div><div style="flex:1;min-width:0"><div class="slot-name"></div><div class="slot-meta"></div></div><button aria-label="Remove">✕</button></div>'+
+      '<div class="player"><div id="yt'+i+'"></div></div>'+
+      '<div class="row"><span class="slot-meta">Mark</span><input type="text" id="mark'+i+'" value="'+fmt(s.mark)+'" aria-label="Start mark"><button data-a="here">Set to now</button></div>'+
+      '<div class="row"><span class="slot-meta">Vol</span><input type="range" id="vol'+i+'" min="0" max="100" value="'+s.vol+'" aria-label="Volume"><span class="slot-meta" id="volv'+i+'">'+s.vol+'</span></div>';
+    el.querySelector(".slot-name").textContent=s.item.brand+" "+(s.item.size?s.item.size+'" ':"")+s.item.model;
+    el.querySelector(".slot-meta").textContent=[s.item.weights.map(w=>w+"g").join(" / "),s.item.date].filter(Boolean).join(" · ");
+    el.querySelector('[aria-label="Remove"]').onclick=()=>clearSlot(i);
+    const mk=el.querySelector("#mark"+i);mk.onchange=()=>{s.mark=unfmt(mk.value);mk.value=fmt(s.mark);saveSlots()};
+    el.querySelector('[data-a="here"]').onclick=()=>{if(s.player&&s.player.getCurrentTime){s.mark=s.player.getCurrentTime();mk.value=fmt(s.mark);saveSlots()}};
+    const vr=el.querySelector("#vol"+i);vr.oninput=()=>{s.vol=+vr.value;el.querySelector("#volv"+i).textContent=s.vol;if(s.player&&s.player.setVolume)s.player.setVolume(s.vol);saveSlots()};
+    el.addEventListener("pointerdown",e=>{if(e.target.closest("button,input"))return;if(active!==i)switchTo(i)});
+    box.append(el);
+    const make=()=>{s.player=new YT.Player("yt"+i,{videoId:s.item.id,playerVars:{playsinline:1,rel:0,start:Math.floor(s.mark)},
+      events:{onReady:ev=>{ev.target.setVolume(s.vol)},onStateChange:ev=>{if(ev.data===1&&active!==i){switchTo(i,true)}}}})};
+    ytReady?make():pending.push(make);
+  });
+  drawAB();
+}
+function drawAB(){
+  const box=$("#abBtns");box.innerHTML="";
+  slots.forEach((s,i)=>{const b=document.createElement("button");b.className="ab"+(i===active?" on":"");b.textContent="ABCD"[i];b.disabled=!s;b.onclick=()=>switchTo(i);box.append(b)});
+}
+function playing(p){try{const st=p.getPlayerState();return st===1||st===3}catch(e){return false}}
+let switching=false;
+function switchTo(i,fromUser){
+  const tgt=slots[i];if(!tgt||!tgt.player||!tgt.player.seekTo)return;
+  if(switching)return;switching=true;
+  const cur=slots[active];let offset=0,was=!!fromUser;
+  if(cur&&cur.player&&active!==i&&cur.player.getCurrentTime){was=was||playing(cur.player);offset=Math.max(0,cur.player.getCurrentTime()-cur.mark);cur.player.pauseVideo()}
+  active=i;
+  if(!fromUser){const t=$("#keepOffset").checked?tgt.mark+offset:tgt.mark;tgt.player.seekTo(t,true);if(was)tgt.player.playVideo()}
+  drawActive();setTimeout(()=>switching=false,150);
+}
+function drawActive(){
+  $("#slots").childNodes.forEach((el,idx)=>{if(el.classList&&el.classList.contains("slot"))el.classList.toggle("active",idx===active)});
+  drawAB();
+}
+$("#play").onclick=()=>{const s=slots[active];if(!s||!s.player)return;playing(s.player)?s.player.pauseVideo():s.player.playVideo()};
+$("#toMark").onclick=()=>{const s=slots[active];if(!s||!s.player)return;s.player.seekTo(s.mark,true);s.player.playVideo()};
+document.addEventListener("keydown",e=>{
+  if(e.target.matches("input,select,textarea"))return;
+  if(/^[1-4]$/.test(e.key)){switchTo(+e.key-1);e.preventDefault()}
+  else if(e.key===" "){$("#play").click();e.preventDefault()}
+  else if(e.key==="m"||e.key==="M"){$("#toMark").click()}
+});
+
+/* ---------- wire up ---------- */
+$("#key").value=LS.get("cab.key","");
+$("#load").onclick=()=>fetchAll(false);
+$("#refresh").onclick=()=>videos.length?fetchAll(true):fetchAll(false);
+["q","brand","size","sort"].forEach(id=>$("#"+id).addEventListener("input",()=>{shown=150;render()}));
+$("#more").onclick=()=>{shown+=150;render()};
+drawTypes();
+const saved=LS.get("cab.slots",[]);
+slots=[0,1,2,3].map(i=>saved[i]?{...saved[i],player:null}:null);
+active=slots.findIndex(Boolean);
+drawSlots();rebuild();
+if(videos.length)status(videos.length+" videos cached. Press Check for new to pick up recent uploads.");
+const s=document.createElement("script");s.src="https://www.youtube.com/iframe_api";document.head.append(s);
+})();
+</script>
+</body>
+</html>
